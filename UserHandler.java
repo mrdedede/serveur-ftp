@@ -16,6 +16,7 @@ public class UserHandler {
             Scanner scanner = new Scanner(in)
         ) {
             out.write("220 SERVICE PRÊT\r\n".getBytes());
+            LoginService ls = new LoginService();
 
             while (true) {
                 if (!scanner.hasNextLine()) {
@@ -29,11 +30,17 @@ public class UserHandler {
 
                 switch (commandParts[0]) {
                     case "USER":
+                        ls.setUser(commandParts[1]);
                         out.write("331 USER NAME OK, INSEREZ LE MOT DE PASSE\r\n".getBytes());
                         break;
 
                     case "PASS":
-                        out.write("230 USER LOGGED IN\r\n".getBytes());
+                        ls.setPass(commandParts[1]);
+                        if (ls.testLogin()) {
+                            out.write("230 USER LOGGED IN\r\n".getBytes());
+                        } else {
+                            out.write("430 USER NAME OU MOT DE PASSE INVALIDE\r\n".getBytes());
+                        }
                         break;
 
                     case "RETR":
