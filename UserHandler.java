@@ -15,6 +15,7 @@ public class UserHandler {
             OutputStream out = this.userSocket.getOutputStream();
             Scanner scanner = new Scanner(in)
         ) {
+
             out.write("220 SERVICE PRÊT\r\n".getBytes());
             LoginService ls = new LoginService();
 
@@ -44,7 +45,15 @@ public class UserHandler {
                         break;
 
                     case "RETR":
-                        this.handleRETRCommand(commandParts[1], in, out);
+                        this.handleRETRCommand(commandParts[1]);
+                        break;
+
+                    case "LIST":
+                        if (commandParts.length == 1) {
+                            this.handleLISTCommand("user.dir");
+                            break;
+                        }
+                        this.handleLISTCommand(commandParts[1]);
                         break;
 
                     case "QUIT":
@@ -63,30 +72,48 @@ public class UserHandler {
         }
     }
 
-    private void handleRETRCommand(String file, InputStream in, OutputStream out) throws IOException {
-        File f = new File("./" + file);
-
-        if (!f.exists()) {
-            out.write("550 LE FICHIER N'EXISTE PAS\r\n".getBytes());
-        } else {
-            out.write("150 FICHIER OK - OUVRIR CONNEXION EN MODE DATA\r\n".getBytes());
-            try {
-                BufferedInputStream readFileStream = new BufferedInputStream(new FileInputStream(f));
-                BufferedOutputStream sendFileStream = new BufferedOutputStream(this.userSocket.getOutputStream());
-
-                byte[] buffer = new byte[1024];
-                int i = 0;
-                while((i = readFileStream.read(buffer, 0, buffer.length)) != -1) {
-                    sendFileStream.write(buffer, 0, i);
-                }
-                readFileStream.close();
-                sendFileStream.close();
-                out.write("226 TRANSFERT CONCLU - FERMER CONNEXION EN MODE DATAa\r\n".getBytes());
-            } catch (Exception e) {
-                out.write("451 TRANSFERT AVORTÉE - FERMER CONNEXION EN MODE DATA\r\n".getBytes());
+    private void handleRETRCommand(String file) {
+        try {
+            OutputStream out = this.userSocket.getOutputStream();
+            File f = new File(System.getProperty("user.dir") + "/" + file);
+            if (!f.exists() || !f.isFile()) {
+                out.write("550 LE FICHIER N'EXISTE PAS\r\n".getBytes());
+                return;
             }
+            out.write("150 FICHIER OK - OUVRIR CONNEXION EN MODE DATA\r\n".getBytes());
+
+            BufferedInputStream fileStream = new BufferedInputStream(new FileInputStream(f));
+            BufferedOutputStream sendStream = new BufferedOutputStream(out);
+
+            byte[] buffer = new byte[2048];
+            int bytesRead;
+            while ((bytesRead = fileStream.read(buffer, 0, 2048)) != -1) {
+                sendStream.write(buffer, 0, bytesRead);
+            }
+            fileStream.close();
+            sendStream.close();
+            out.write("226 TRANSFERT CONCLU - FERMER CONNEXION EN MODE DATA\r\n".getBytes());
+        } catch (IOException e) {
+            System.out.println("Erreur lors de la configuration du flux: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    private void handleLISTCommand(String dir) {
+        String curDir;
+        if(dir != "user.dir") {
+            curDir = System.getProperty("user.dir")+dir;
+        } else {
+            curDir = System.getProperty(dir);
         }
 
-    }
+        File f = new File(curDir);
+        if(f.exists() && f.isDirectory()) {
 
+        } else if (f.exists() && f.isFile()) {
+
+        } else {
+
+        }
+    }
 }

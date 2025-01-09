@@ -9,8 +9,8 @@ Serveur FTP codé pour les cours de Conceptions d'Applications Reparties, Master
 - [x] Implementer la connexion avec login et mot de passe, en utilisant la commande QUIT pour se déconnecter
 - [x] Implementer les erreurs pour le mauvais mot de passe ou user name
 - [x] Ajouter le support de la commande RETR (get)
-- [ ] Ajouter le support de la commande PWD (dir)
-- [ ] Ajouter le support de la commande CDUP (cd)
+- [ ] Ajouter le support de la commande LIST (dir)
+- [ ] Ajouter le support de la commande CWP (cd)
 - [ ] Écrire sur comment on peut étendre le programme
 - [ ] Faire une demonstration du fonctionnement du serveur
 
