@@ -4,6 +4,8 @@ import java.util.Scanner;
 
 public class UserHandler {
     Socket userSocket;
+    String transferIP;
+    String transferPort;
 
     UserHandler(Socket userSocket) {
         this.userSocket = userSocket;
@@ -48,6 +50,10 @@ public class UserHandler {
                         this.handleRETRCommand(commandParts[1]);
                         break;
 
+                    case "EPRT":
+                        this.handleEPRTCommand(commandParts[1]);
+                        break;
+
                     case "LIST":
                         if (commandParts.length == 1) {
                             this.handleLISTCommand("user.dir");
@@ -80,24 +86,40 @@ public class UserHandler {
                 out.write("550 LE FICHIER N'EXISTE PAS\r\n".getBytes());
                 return;
             }
+            Socket transferServerSocket = new Socket(transferIP, Integer.parseInt(transferPort));
+
             out.write("150 FICHIER OK - OUVRIR CONNEXION EN MODE DATA\r\n".getBytes());
 
             BufferedInputStream fileStream = new BufferedInputStream(new FileInputStream(f));
-            BufferedOutputStream sendStream = new BufferedOutputStream(out);
+            BufferedOutputStream sendStream = new BufferedOutputStream(transferServerSocket.getOutputStream());
 
             byte[] buffer = new byte[2048];
             int bytesRead;
             while ((bytesRead = fileStream.read(buffer, 0, 2048)) != -1) {
                 sendStream.write(buffer, 0, bytesRead);
             }
+            sendStream.flush();
             fileStream.close();
-            sendStream.close();
             out.write("226 TRANSFERT CONCLU - FERMER CONNEXION EN MODE DATA\r\n".getBytes());
+            transferServerSocket.close();
         } catch (IOException e) {
             System.out.println("Erreur lors de la configuration du flux: " + e.getMessage());
             e.printStackTrace();
         }
     }
+
+    private void handleEPRTCommand(String port) {
+        try {
+            System.out.println("Client attend des données au  "+ port.split("\\|")[2] + ":" + port.split("\\|")[3]);
+            this.transferIP = port.split("\\|")[2];
+            this.transferPort = port.split("\\|")[3];
+            userSocket.getOutputStream().write("200 COMMAND OK: EPRT\r\n".getBytes());
+        } catch (IOException e) {
+            System.err.println("Erreur EPRT: " + e.getMessage());
+        }
+    }
+
+
     
     private void handleLISTCommand(String dir) {
         String curDir;
