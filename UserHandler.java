@@ -4,8 +4,7 @@ import java.util.Scanner;
 
 public class UserHandler {
     Socket userSocket;
-    String transferIP;
-    String transferPort;
+    Socket transferSocket;
 
     UserHandler(Socket userSocket) {
         this.userSocket = userSocket;
@@ -48,6 +47,7 @@ public class UserHandler {
 
                     case "RETR":
                         this.handleRETRCommand(commandParts[1]);
+                        transferSocket.close();
                         break;
 
                     case "EPRT":
@@ -60,6 +60,11 @@ public class UserHandler {
                             break;
                         }
                         this.handleLISTCommand(commandParts[1]);
+                        transferSocket.close();
+                        break;
+                    
+                    case "CWD":
+                        this.handleCWDCommand(commandParts[1]);
                         break;
 
                     case "QUIT":
@@ -86,12 +91,11 @@ public class UserHandler {
                 out.write("550 LE FICHIER N'EXISTE PAS\r\n".getBytes());
                 return;
             }
-            Socket transferServerSocket = new Socket(transferIP, Integer.parseInt(transferPort));
 
             out.write("150 FICHIER OK - OUVRIR CONNEXION EN MODE DATA\r\n".getBytes());
 
             BufferedInputStream fileStream = new BufferedInputStream(new FileInputStream(f));
-            BufferedOutputStream sendStream = new BufferedOutputStream(transferServerSocket.getOutputStream());
+            BufferedOutputStream sendStream = new BufferedOutputStream(transferSocket.getOutputStream());
 
             byte[] buffer = new byte[2048];
             int bytesRead;
@@ -101,7 +105,7 @@ public class UserHandler {
             sendStream.flush();
             fileStream.close();
             out.write("226 TRANSFERT CONCLU - FERMER CONNEXION EN MODE DATA\r\n".getBytes());
-            transferServerSocket.close();
+            transferSocket.close();
         } catch (IOException e) {
             System.out.println("Erreur lors de la configuration du flux: " + e.getMessage());
             e.printStackTrace();
@@ -111,8 +115,7 @@ public class UserHandler {
     private void handleEPRTCommand(String port) {
         try {
             System.out.println("Client attend des données au  "+ port.split("\\|")[2] + ":" + port.split("\\|")[3]);
-            this.transferIP = port.split("\\|")[2];
-            this.transferPort = port.split("\\|")[3];
+            transferSocket = new Socket(port.split("\\|")[2], Integer.parseInt(port.split("\\|")[3]));
             userSocket.getOutputStream().write("200 COMMAND OK: EPRT\r\n".getBytes());
         } catch (IOException e) {
             System.err.println("Erreur EPRT: " + e.getMessage());
@@ -120,22 +123,58 @@ public class UserHandler {
     }
 
 
-    
     private void handleLISTCommand(String dir) {
         String curDir;
         if(dir != "user.dir") {
-            curDir = System.getProperty("user.dir")+dir;
+            curDir = System.getProperty("user.dir")+"/"+dir;
         } else {
             curDir = System.getProperty(dir);
         }
 
         File f = new File(curDir);
+        
+        System.out.println(curDir);
         if(f.exists() && f.isDirectory()) {
-
+            for(int i = 0; i < f.list().length; i++) {
+                handleLISTCommand(f.list()[i]);
+            }
         } else if (f.exists() && f.isFile()) {
+            try {
+                transferSocket.getOutputStream().write(curDir.getBytes());
+            } catch (Exception e) {
+                System.out.println("Error! \n"+e.getMessage());
+            }
+        }
+    }
 
-        } else {
+    private void handleCWDCommand(String dir) {
+        String root = System.getProperty("user.dir");
+        String filename = System.getProperty("user.dir");
 
+        // go one level up (cd ..)
+        if (dir.equals("..")) {
+          int ind = filename.lastIndexOf("/");
+          if (ind > 0) {
+            filename = filename.substring(0, ind);
+          }
+        }
+    
+        // if argument is anything else (cd . does nothing)
+        else if ((dir != null) && (!dir.equals("."))) {
+          filename = filename + "/" + dir;
+        }
+    
+        // check if file exists, is directory and is not above root directory
+        File f = new File(filename);
+        try {
+            if (f.exists() && f.isDirectory() && (filename.length() >= root.length())) {
+                String filenameMsg = "250 The current directory has been changed to " + filename + "\r\n";
+                transferSocket.getOutputStream().write(filenameMsg.getBytes());
+            } else {
+                transferSocket.getOutputStream().write("550 Requested action not taken. File unavailable. \r\n".getBytes());
+            }
+        }  catch (Exception e){
+            System.out.println(e);
         }
     }
 }
